@@ -29,12 +29,14 @@ let workerScript = `
 
 		resp = {
 			match: compareObj(navigator, e.data.navigator, 0),
-			solution: ""
+			solution: "",
+			access: ""
 		}
 
 		e.data.arr.forEach(string => {
 			if(CryptoJS.MD5(e.data.ip+string) == e.data.challenge){
 				resp.solution = string
+				resp.access = CryptoJS.MD5(string+e.data.ip).toString()
 				self.postMessage(resp)
 			}
 		})
@@ -100,7 +102,7 @@ function divideArray(arr, parts) {
 function solved(res) {
 	if (res.data.match) {
 		console.log("🥳 Heureka", res.data)
-		document.cookie = "POW-Solution=" + res.data.solution + "; SameSite=Lax; path=/; Secure";
+		document.cookie = "POW-Solution=" + res.data.access + "; SameSite=Lax; path=/; Secure";
 		window.location.reload()
 	} else {
 		console.log("🕵️ Something's wrong")
@@ -129,8 +131,8 @@ let numWorkers = navigator.hardwareConcurrency
 if (numWorkers == undefined) {
 	numWorkers = 2
 }
-if (numWorkers > 4) {
-	numWorkers = 4
+if (numWorkers > 8) {
+	numWorkers = 8
 }
 
 // Index every possible string

@@ -1,0 +1,1 @@
+Frontend design heavily "inspired" by https://github.com/RuiSiang/PoW-Shield
