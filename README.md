@@ -1,2 +1,2 @@
 # uam
-A simple golang server with an uam JS challenge
+A very simple Proof-Of-Concept POW challenge
