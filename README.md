@@ -1,4 +1,4 @@
-# uam
+# PoW
 A very simple Proof-Of-Concept POW challenge
 
 ## Usage
