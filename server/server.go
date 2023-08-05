@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -50,7 +49,6 @@ func UAM(c *fiber.Ctx, IP string, solution string) error {
 
 	if solution == "" {
 		salt := RandomSalt(difficulty)
-		fmt.Println(salt)
 		solution = HashStr(salt + IP)
 		challenge = HashStr(IP + publicSalt + salt)
 
