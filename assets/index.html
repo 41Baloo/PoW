@@ -97,7 +97,33 @@
 		const indexRes = document.getElementById("index_res")
 		const bruteforcing = document.getElementsByClassName("bruteforcing")[0]
 		const bruteRes = document.getElementById("brute_res")
-		const solved = document.getElementsByClassName("solved")[0]
+		const solvedRes = document.getElementsByClassName("solved")[0]
+
+		let indexScript = `
+
+			let possibleStrings = []
+
+			function iterateStrings(currentString, length) {
+				const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
+
+				if (currentString.length === length) {
+					possibleStrings.push(currentString)
+					return;
+				}
+
+				for (let i = 0; i < alphabet.length; i++) {
+					iterateStrings(currentString + alphabet[i], length);
+				}
+			}
+
+			self.onmessage = function(e) {
+				iterateStrings("", e.data.difficulty)
+				self.postMessage(possibleStrings)
+				self.close()
+			}
+
+
+		`
 
 		let workerScript = `
 
@@ -135,6 +161,7 @@
 						resp.solution = string
 						resp.access = CryptoJS.MD5(string+e.data.ip).toString()
 						self.postMessage(resp)
+						self.close()
 					}
 				})
 			}
@@ -142,17 +169,26 @@
 
 		let possibleStrings = []
 
-		function iterateStrings(currentString, length) {
-			const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
+		function spawnIndexWorker(arr) {
+			console.log("Spawned Index-Worker")
+			let blob = new Blob([indexScript], {
+				type: 'text/javascript'
+			});
 
-			if (currentString.length === length) {
-				possibleStrings.push(currentString)
-				return;
+			// Convert the Blob to a URL using URL.createObjectURL()
+			var url = URL.createObjectURL(blob);
+
+			// Create a new Worker using the Blob URL
+			var worker = new Worker(url);
+
+			// Listen for messages from the worker
+			worker.onmessage = indexed
+			let workerMsg = {
+				difficulty
 			}
 
-			for (let i = 0; i < alphabet.length; i++) {
-				iterateStrings(currentString + alphabet[i], length);
-			}
+			// Give the worker his array of strings to bruteforce
+			worker.postMessage(workerMsg);
 		}
 
 		function spawnWorker(arr) {
@@ -201,10 +237,10 @@
 			if (res.data.match) {
 				console.log("🥳 Heureka", res.data)
 				bruteRes.children[0].innerHTML = "V"
-		        bruteRes.classList.remove('blink')
-		        bruteRes.children[1].remove()
-		        bruteRes.children[1].remove()
-		        solved.style.visibility = "visible"
+				bruteRes.classList.remove('blink')
+				bruteRes.children[1].remove()
+				bruteRes.children[1].remove()
+				solvedRes.style.visibility = "visible"
 				document.cookie = "POW-Solution=" + res.data.access + "; SameSite=Lax; path=/; Secure";
 				window.location.reload()
 			} else {
@@ -226,36 +262,39 @@
 			return clone;
 		}
 
-		// Clone navigator
-		navigatorData = cloneObject(navigator, 0);
+		function indexed(res){
 
-		// Calculate how many workers we can create
-		let numWorkers = navigator.hardwareConcurrency
-		if (numWorkers == undefined) {
-			numWorkers = 2
+			possibleStrings = res.data
+			console.log("🥱 Indexed Strings")
+			indexRes.children[0].innerHTML = "V"
+			indexRes.classList.remove('blink')
+			indexRes.children[1].remove()
+			indexRes.children[1].remove()
+			bruteforcing.style.visibility = "visible"
+
+			// Clone navigator
+			navigatorData = cloneObject(navigator, 0);
+
+			// Calculate how many workers we can create
+			let numWorkers = navigator.hardwareConcurrency
+			if (numWorkers == undefined) {
+				numWorkers = 2
+			}
+			if (numWorkers > 8) {
+				numWorkers = 8
+			}
+
+			let arrs = divideArray(possibleStrings, numWorkers)
+
+			console.log("💪 Bruteforcing")
+
+			arrs.forEach(arr => {
+				spawnWorker(arr)
+			})
 		}
-		if (numWorkers > 8) {
-			numWorkers = 8
-		}
 
-		// Index every possible string
-		iterateStrings("", difficulty)
+		indexing.style.visibility = "visible"
 
-		console.log("🥱 Indexed Strings")
-		indexRes.children[0].innerHTML = "V"
-		indexRes.classList.remove('blink')
-		indexRes.children[1].remove()
-		indexRes.children[1].remove()
-		bruteforcing.style.visibility = "visible"
-
-		let arrs = divideArray(possibleStrings, numWorkers)
-
-		console.log("💪 Bruteforcing")
-
-		arrs.forEach(arr => {
-			spawnWorker(arr)
-		})
-		
-		
+		spawnIndexWorker()
 	</script>
 </html>
