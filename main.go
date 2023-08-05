@@ -15,7 +15,7 @@ func main() {
 
 	go server.ClearCache()
 
-	if err := httpServer.Listen(":80"); err != nil {
+	if err := httpServer.Listen(":8090"); err != nil {
 		panic(err)
 	}
 }
