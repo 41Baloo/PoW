@@ -12,6 +12,9 @@ func main() {
 		server.Middleware(c)
 		return nil
 	})
+
+	go server.ClearCache()
+
 	if err := httpServer.Listen(":80"); err != nil {
 		panic(err)
 	}

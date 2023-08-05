@@ -1,6 +1,7 @@
 let ip = "1.1.1.1"
 let challenge = "a33a38b9235d5b27a606234d60a44deb"
 let difficulty = 4
+let publicSalt = "CHANGE_ME"
 
 let workerScript = `
 
@@ -34,7 +35,7 @@ let workerScript = `
 		}
 
 		e.data.arr.forEach(string => {
-			if(CryptoJS.MD5(e.data.ip+string) == e.data.challenge){
+			if(CryptoJS.MD5(e.data.ip+e.data.publicSalt+string) == e.data.challenge){
 				resp.solution = string
 				resp.access = CryptoJS.MD5(string+e.data.ip).toString()
 				self.postMessage(resp)
@@ -76,6 +77,7 @@ function spawnWorker(arr) {
 		challenge: challenge,
 		navigator: navigatorData,
 		ip: ip,
+		publicSalt: publicSalt,
 		arr: arr
 	}
 
