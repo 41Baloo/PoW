@@ -14,7 +14,7 @@ func HashStr(input string) string {
 }
 
 func RandomSalt(length int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	rand.Seed(time.Now().UnixNano())
 	s := make([]byte, length)
 	for i := range s {

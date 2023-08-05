@@ -7,7 +7,10 @@ import (
 )
 
 func main() {
-	httpServer := fiber.New()
+	config := fiber.Config{
+		DisableDefaultContentType: true,
+	}
+	httpServer := fiber.New(config)
 	httpServer.Use(func(c *fiber.Ctx) error {
 		server.Middleware(c)
 		return nil
