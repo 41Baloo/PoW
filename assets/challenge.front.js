@@ -1,63 +1,44 @@
 const ip = "1.1.1.1"
-const challenge = "a33a38b9235d5b27a606234d60a44deb"
-const difficulty = 4
+const challenge = "bafc7cafd278461aca805eff634b3973a957551d2e45605b4d51aab6cd716cc7"
+const difficulty = 5000000
 const publicSalt = "CHANGE_ME"
+const disclaimer = document.getElementsByClassName("disclaimer")[0]
+const disclaimerText = document.getElementById("disclaimer_text")
 const indexing = document.getElementsByClassName("indexing")[0]
 const indexRes = document.getElementById("index_res")
 const bruteforcing = document.getElementsByClassName("bruteforcing")[0]
 const bruteRes = document.getElementById("brute_res")
-const solvedRes = document.getElementsByClassName("solved")[0]
+const solvedClass = document.getElementsByClassName("solved")[0]
+const solvedText = document.getElementById("solved_text")
+const solvedRes = document.getElementById("solved_res")
 let startDate = undefined
 
-let indexScript = `
-
-	let possibleStrings = []
-
-	function iterateStrings(currentString, length) {
-		const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
-
-		if (currentString.length === length) {
-			possibleStrings.push(currentString)
-			return;
-		}
-
-		for (let i = 0; i < alphabet.length; i++) {
-			iterateStrings(currentString + alphabet[i], length);
-		}
-	}
-
-	self.onmessage = function(e) {
-		iterateStrings("", e.data.difficulty)
-		self.postMessage(possibleStrings)
-		self.close()
-	}
-
-
-`
+console.log("🥱 Starting Workers")
+indexing.style.visibility = "visible"
 
 let workerScript = `
 
 	importScripts('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js');
 
-    self.onmessage = function(e) { 
+	self.onmessage = function(e) { 
 	
 		function compareObj(obj1, obj2, iteration){
 			if(iteration > 4){
-				return true
-		  	}
+				return ""
+			}
 			for(let key in obj1){
 				if(typeof obj1[key] == "function"){
-					return true
+					return ""
 				}
-			  	if(typeof obj1[key] == "object"){
+				if(typeof obj1[key] == "object"){
 					compareObj(obj1[key], obj2[key], iteration + 1)
 				} else {
 					if(obj1[key] != obj2[key]){
-						return false
-			  		}
+						return obj1[key].toString()
+					}
 				}
 			}
-		  	return true
+			return ""
 		}
 
 		resp = {
@@ -66,45 +47,31 @@ let workerScript = `
 			access: ""
 		}
 
-		e.data.arr.forEach(string => {
-			if(CryptoJS.MD5(e.data.ip+e.data.publicSalt+string) == e.data.challenge){
-				resp.solution = string
-				resp.access = CryptoJS.MD5(string+e.data.ip).toString()
+		let start = e.data.start
+		let end = e.data.end
+		
+		for(let i = start; i < end+1; i++){
+			if(CryptoJS.SHA256(e.data.ip+e.data.publicSalt+i) == e.data.challenge){
+				resp.solution = i
+				resp.access = CryptoJS.SHA256(i+e.data.ip).toString()
 				self.postMessage(resp)
 				self.close()
 			}
-		})
+		}
 
-		console.log("Worker Couldn't Find Hash")
+		console.log("Worker Couldn't Find Hash ("+start+" - "+end+")")
 		self.close()
-    }
+	}
 `
 
-let possibleStrings = []
-
-function spawnIndexWorker(arr) {
-	console.log("Spawned Index-Worker")
-	let blob = new Blob([indexScript], {
-		type: 'text/javascript'
-	});
-
-	// Convert the Blob to a URL using URL.createObjectURL()
-	var url = URL.createObjectURL(blob);
-
-	// Create a new Worker using the Blob URL
-	var worker = new Worker(url);
-
-	// Listen for messages from the worker
-	worker.onmessage = indexed
-	let workerMsg = {
-		difficulty
-	}
-
-	// Give the worker his array of strings to bruteforce
-	worker.postMessage(workerMsg);
+function checkElement(element, check){
+	element.children[0].innerHTML = check
+	element.classList.remove('blink')
+	element.children[1].remove()
+	element.children[1].remove()
 }
 
-function spawnWorker(arr) {
+function spawnWorker(start, end) {
 	console.log("Spawned Worker")
 	let blob = new Blob([workerScript], {
 		type: 'text/javascript'
@@ -123,42 +90,30 @@ function spawnWorker(arr) {
 		navigator: navigatorData,
 		ip: ip,
 		publicSalt: publicSalt,
-		arr: arr
+		start: start,
+		end: end
 	}
 
 	// Give the worker his array of strings to bruteforce
 	worker.postMessage(workerMsg);
 }
 
-function divideArray(arr, parts) {
-	let result = [];
-	let len = arr.length;
-	let partLen = Math.floor(len / parts);
-
-	for (let i = 0; i < parts; i++) {
-		let start = partLen * i;
-		let end = i === parts - 1 ? len : start + partLen;
-
-		result.push(arr.slice(start, end));
-	}
-
-	return result;
-}
-
 // A worker bruteforced it
 function solved(res) {
-	if (res.data.match) {
+	if (res.data.match == "") {
 		let endDate = new Date
 		console.log("🥳 Heureka", res.data)
 		console.log("Solved In:", (endDate.getTime() - startDate.getTime())/1000)
-		bruteRes.children[0].innerHTML = "V"
-		bruteRes.classList.remove('blink')
-		bruteRes.children[1].remove()
-		bruteRes.children[1].remove()
-		solvedRes.style.visibility = "visible"
+		checkElement(bruteRes, "V")
+		solvedText.style.visibility = "visible"
 		document.cookie = "POW-Solution=" + res.data.access + "; SameSite=Lax; path=/; Secure";
 		window.location.reload()
 	} else {
+		checkElement(bruteRes, "V")
+		solvedText.innerHTML = res.data.match+" Mismatch"
+		checkElement(solvedRes, "X")
+		solvedClass.style.visibility = "visible"
+		checkElement(disclaimer, "Blocked")
 		console.log("🕵️ Something's wrong")
 	}
 }
@@ -177,38 +132,28 @@ function cloneObject(obj, iteration) {
 	return clone;
 }
 
-function indexed(res){
+// Clone navigator
+navigatorData = cloneObject(navigator, 0);
 
-	possibleStrings = res.data
-	console.log("🥱 Indexed Strings")
-	indexRes.children[0].innerHTML = "V"
-	indexRes.classList.remove('blink')
-	indexRes.children[1].remove()
-	indexRes.children[1].remove()
-	bruteforcing.style.visibility = "visible"
-
-	// Clone navigator
-	navigatorData = cloneObject(navigator, 0);
-
-	// Calculate how many workers we can create
-	let numWorkers = navigator.hardwareConcurrency
-	if (numWorkers == undefined) {
-		numWorkers = 2
-	}
-	if (numWorkers > 8) {
-		numWorkers = 8
-	}
-
-	let arrs = divideArray(possibleStrings, numWorkers)
-
-	console.log("💪 Bruteforcing")
-	startDate = new Date
-
-	arrs.forEach(arr => {
-		spawnWorker(arr)
-	})
+// Calculate how many workers we can create
+let numWorkers = navigator.hardwareConcurrency
+if (numWorkers == undefined) {
+	numWorkers = 2
+}
+if (numWorkers > 8) {
+	numWorkers = 8
 }
 
-indexing.style.visibility = "visible"
+let divided = Math.ceil(difficulty/8)
 
-spawnIndexWorker()
+for(let i = 0; i < difficulty; i = i + divided){
+	spawnWorker(i, i+divided)
+}
+
+console.log("💪 Bruteforcing")
+startDate = new Date
+indexRes.children[0].innerHTML = "V"
+indexRes.classList.remove('blink')
+indexRes.children[1].remove()
+indexRes.children[1].remove()
+bruteforcing.style.visibility = "visible"

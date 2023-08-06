@@ -1,34 +1,8 @@
 let ip = "1.1.1.1"
 let challenge = "1416a8c534344980685a0073b97cb7dc"
-let difficulty = 4
+let difficulty = 6000
 let publicSalt = "CHANGE_ME"
 let startDate = undefined
-
-let indexScript = `
-
-	let possibleStrings = []
-
-	function iterateStrings(currentString, length) {
-		const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
-
-		if (currentString.length === length) {
-			possibleStrings.push(currentString)
-			return;
-		}
-
-		for (let i = 0; i < alphabet.length; i++) {
-			iterateStrings(currentString + alphabet[i], length);
-		}
-	}
-
-	self.onmessage = function(e) {
-		iterateStrings("", e.data.difficulty)
-		self.postMessage(possibleStrings)
-		self.close()
-	}
-
-
-`
 
 let workerScript = `
 
@@ -61,45 +35,24 @@ let workerScript = `
 			access: ""
 		}
 
-		e.data.arr.forEach(string => {
-			if(CryptoJS.MD5(e.data.ip+e.data.publicSalt+string) == e.data.challenge){
-				resp.solution = string
-				resp.access = CryptoJS.MD5(string+e.data.ip).toString()
+		let start = e.data.start
+		let end = e.data.end
+		
+		for(let i = start; i < end+1; i++){
+			if(CryptoJS.SHA256(e.data.ip+e.data.publicSalt+i) == e.data.challenge){
+				resp.solution = i
+				resp.access = CryptoJS.SHA256(i+e.data.ip).toString()
 				self.postMessage(resp)
 				self.close()
 			}
-		})
+		}
 
-		console.log("Worker Couldn't Find Hash")
+		console.log("Worker Couldn't Find Hash ("+start+" - "+end+")")
 		self.close()
     }
 `
 
-let possibleStrings = []
-
-function spawnIndexWorker(arr) {
-	console.log("Spawned Index-Worker")
-	let blob = new Blob([indexScript], {
-		type: 'text/javascript'
-	});
-
-	// Convert the Blob to a URL using URL.createObjectURL()
-	var url = URL.createObjectURL(blob);
-
-	// Create a new Worker using the Blob URL
-	var worker = new Worker(url);
-
-	// Listen for messages from the worker
-	worker.onmessage = indexed
-	let workerMsg = {
-		difficulty
-	}
-
-	// Give the worker his array of strings to bruteforce
-	worker.postMessage(workerMsg);
-}
-
-function spawnWorker(arr) {
+function spawnWorker(start, end) {
 	console.log("Spawned Worker")
 	let blob = new Blob([workerScript], {
 		type: 'text/javascript'
@@ -118,26 +71,12 @@ function spawnWorker(arr) {
 		navigator: navigatorData,
 		ip: ip,
 		publicSalt: publicSalt,
-		arr: arr
+		start: start,
+		end: end
 	}
 
 	// Give the worker his array of strings to bruteforce
 	worker.postMessage(workerMsg);
-}
-
-function divideArray(arr, parts) {
-	let result = [];
-	let len = arr.length;
-	let partLen = Math.floor(len / parts);
-
-	for (let i = 0; i < parts; i++) {
-		let start = partLen * i;
-		let end = i === parts - 1 ? len : start + partLen;
-
-		result.push(arr.slice(start, end));
-	}
-
-	return result;
 }
 
 // A worker bruteforced it
@@ -167,31 +106,25 @@ function cloneObject(obj, iteration) {
 	return clone;
 }
 
-function indexed(res){
+// Clone navigator
+navigatorData = cloneObject(navigator, 0);
 
-	possibleStrings = res.data
-	console.log("🥱 Indexed Strings")
-
-	// Clone navigator
-	navigatorData = cloneObject(navigator, 0);
-
-	// Calculate how many workers we can create
-	let numWorkers = navigator.hardwareConcurrency
-	if (numWorkers == undefined) {
-		numWorkers = 2
-	}
-	if (numWorkers > 8) {
-		numWorkers = 8
-	}
-
-	let arrs = divideArray(possibleStrings, numWorkers)
-
-	console.log("💪 Bruteforcing")
-	startDate = new Date
-
-	arrs.forEach(arr => {
-		spawnWorker(arr)
-	})
+// Calculate how many workers we can create
+let numWorkers = navigator.hardwareConcurrency
+if (numWorkers == undefined) {
+	numWorkers = 2
+}
+if (numWorkers > 8) {
+	numWorkers = 8
 }
 
-spawnIndexWorker()
+let divided = Math.ceil(difficulty/8)
+
+console.log("🥱 Starting Workers")
+
+for(let i = 0; i < difficulty; i = i + divided){
+	spawnWorker(i, i+divided)
+}
+
+console.log("💪 Bruteforcing")
+startDate = new Date
