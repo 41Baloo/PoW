@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -10,13 +11,15 @@ import (
 
 var (
 	mutex          = &sync.Mutex{}
+	bypassMutex    = &sync.Mutex{}
 	IPMap          = map[string]IP_INFORMATION{}
 	IPCountMap     = map[string]int{}
 	IPSaltMap      = map[string]string{}
 	IPChallengeMap = map[string]string{}
 	IPSolutionMap  = map[string]string{}
 
-	CurrTime int64
+	CurrTime      int64
+	TotalRequests = 0
 )
 
 const (
@@ -27,8 +30,8 @@ const (
 )
 
 func Middleware(c *fiber.Ctx) error {
-	// Make immutable copy
-	IP := string([]byte(c.GetReqHeaders()["Cf-Connecting-Ip"]))
+	// Make immutable copy when using headers
+	IP := c.IP() //string([]byte(c.GetReqHeaders()["Cf-Connecting-Ip"]))
 
 	// Lock map to avoid race conditions
 	mutex.Lock()
@@ -51,7 +54,21 @@ func Middleware(c *fiber.Ctx) error {
 }
 
 func Passed(c *fiber.Ctx) error {
-	return c.SendString("🥳 You Passed The POW")
+	bypassMutex.Lock()
+	TotalRequests++
+	cTTR := TotalRequests
+	bypassMutex.Unlock()
+	switch c.Path() {
+	case "/":
+		return c.SendString("🥳 You Passed The POW")
+	case "/dstat":
+		c.Append("Content-Type", "text/html")
+		return c.SendString(`<script>let lRs=0;setInterval(()=>{fetch("/info").then(e=>{e.text().then(e=>{let t=parseInt(e);t==NaN&&location.reload();let l=t-lRs;l>-1&&(document.body.innerHTML="[ Bypassing Requests Per Second ]: "+l),lRs=t})})},1e3);</script>`)
+	case "/info":
+		return c.SendString(strconv.Itoa(cTTR))
+	default:
+		return c.SendString("😢 Couldn't Find That Path")
+	}
 }
 
 func UAM(c *fiber.Ctx, IP string, IPInfo IP_INFORMATION) error {
