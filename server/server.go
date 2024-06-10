@@ -68,7 +68,7 @@ func Passed(c *fiber.Ctx) error {
 func UAM(c *fiber.Ctx, IP string, IPInfo IP_INFORMATION) error {
 
 	if IPInfo == (IP_INFORMATION{}) {
-		publicSalt := strconv.Itoa(RandomNum(DynamicSaltLength))
+		publicSalt := RandomStr(DynamicSaltLength)
 		salt := strconv.Itoa(RandomNum(Difficulty))
 		IPInfo.PublicSalt = publicSalt
 		IPInfo.Solution = HashStr(salt + publicSalt)
